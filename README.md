@@ -94,7 +94,7 @@ taskmanager/
 <h3>Installation</h3>
 <ol>
   <li><strong>Clone the Repository</strong>:
-    <pre><code>git clone https://github.com/your-username/TaskManagerApp.git
+    <pre><code>git clone https://github.com/NOVHUN/taskmanager_flutter_script.git
 cd TaskManagerApp</code></pre>
   </li>
   <li><strong>Install Dependencies</strong>:
