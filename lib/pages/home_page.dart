@@ -12,17 +12,29 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   DatabaseHelper dbHelper = DatabaseHelper();
   Future<List<Task>>? _taskList;
+  TextEditingController searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _refreshTaskList();
+    searchController.addListener(_filterTasks);
   }
 
   void _refreshTaskList() {
     setState(() {
       _taskList = dbHelper.getTasks();
     });
+  }
+
+  void _filterTasks() {
+    setState(() {});
+  }
+
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -42,31 +54,64 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
-      body: FutureBuilder<List<Task>>(
-        future: _taskList,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator());
-          }
-          if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return Center(child: Text('No tasks available.'));
-          }
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: TextField(
+              controller: searchController,
+              decoration: InputDecoration(
+                labelText: 'Search',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(25.0)),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: FutureBuilder<List<Task>>(
+              future: _taskList,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Center(child: CircularProgressIndicator());
+                }
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return Center(child: Text('No tasks available.'));
+                }
 
-          // Separate completed and incomplete tasks
-          List<Task> tasks = snapshot.data!;
-          List<Task> incompleteTasks =
-              tasks.where((task) => !task.isDone).toList();
-          List<Task> completedTasks =
-              tasks.where((task) => task.isDone).toList();
+                List<Task> tasks = snapshot.data!;
+                String searchTerm = searchController.text.toLowerCase();
+                tasks = tasks.where((task) {
+                  return task.title.toLowerCase().contains(searchTerm) ||
+                      task.startDate.toLowerCase().contains(searchTerm) ||
+                      task.endDate.toLowerCase().contains(searchTerm) ||
+                      task.priority.toLowerCase().contains(searchTerm) ||
+                      task.timeWorking.toLowerCase().contains(searchTerm) ||
+                      task.duration.toLowerCase().contains(searchTerm) ||
+                      task.note.toLowerCase().contains(searchTerm);
+                }).toList();
 
-          return ListView(
-            children: [
-              ...incompleteTasks.map((task) => buildTaskTile(task)).toList(),
-              Divider(), // Separator between incomplete and completed tasks
-              ...completedTasks.map((task) => buildTaskTile(task)).toList(),
-            ],
-          );
-        },
+                List<Task> incompleteTasks =
+                    tasks.where((task) => !task.isDone).toList();
+                List<Task> completedTasks =
+                    tasks.where((task) => task.isDone).toList();
+
+                return ListView(
+                  children: [
+                    ...incompleteTasks
+                        .map((task) => buildTaskTile(task))
+                        .toList(),
+                    Divider(),
+                    ...completedTasks
+                        .map((task) => buildTaskTile(task))
+                        .toList(),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         child: Icon(Icons.add),
