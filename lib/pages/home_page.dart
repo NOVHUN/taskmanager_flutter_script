@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:taskmanager/database_helper.dart';
-import 'package:taskmanager/pages/add_task_page.dart';
-import 'package:taskmanager/models/task_model.dart';
+import 'package:provider/provider.dart';
+import 'task_provider.dart';
+import 'task_form_dialog.dart';
+import '../models/task_model.dart';
 
 class HomePage extends StatefulWidget {
   @override
@@ -10,25 +11,12 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  DatabaseHelper dbHelper = DatabaseHelper();
-  Future<List<Task>>? _taskList;
   TextEditingController searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _refreshTaskList();
     searchController.addListener(_filterTasks);
-  }
-
-  void _refreshTaskList() {
-    setState(() {
-      _taskList = dbHelper.getTasks();
-    });
-  }
-
-  void _filterTasks() {
-    setState(() {});
   }
 
   @override
@@ -37,23 +25,30 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
+  void _filterTasks() {
+    setState(() {});
+  }
+
+  void _showTaskForm({Task? task}) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return TaskFormDialog(
+          task: task,
+          onSave: () {
+            Provider.of<TaskProvider>(context, listen: false).loadTasks();
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    var orientation = MediaQuery.of(context).orientation;
+    var isLandscape = orientation == Orientation.landscape;
+
     return Scaffold(
-      appBar: AppBar(
-        leading: Icon(Icons.home),
-        title: Text('TaskManager'),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.history),
-            onPressed: () => Navigator.pushNamed(context, '/history'),
-          ),
-          IconButton(
-            icon: Icon(Icons.settings),
-            onPressed: () => Navigator.pushNamed(context, '/settings'),
-          ),
-        ],
-      ),
       body: Column(
         children: [
           Padding(
@@ -70,17 +65,13 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
           Expanded(
-            child: FutureBuilder<List<Task>>(
-              future: _taskList,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return Center(child: CircularProgressIndicator());
-                }
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            child: Consumer<TaskProvider>(
+              builder: (context, taskProvider, child) {
+                if (taskProvider.tasks.isEmpty) {
                   return Center(child: Text('No tasks available.'));
                 }
 
-                List<Task> tasks = snapshot.data!;
+                List<Task> tasks = taskProvider.tasks;
                 String searchTerm = searchController.text.toLowerCase();
                 tasks = tasks.where((task) {
                   return task.title.toLowerCase().contains(searchTerm) ||
@@ -92,21 +83,29 @@ class _HomePageState extends State<HomePage> {
                       task.note.toLowerCase().contains(searchTerm);
                 }).toList();
 
+                // Separate incomplete and completed tasks
                 List<Task> incompleteTasks =
                     tasks.where((task) => !task.isDone).toList();
                 List<Task> completedTasks =
                     tasks.where((task) => task.isDone).toList();
 
-                return ListView(
-                  children: [
-                    ...incompleteTasks
-                        .map((task) => buildTaskTile(task))
-                        .toList(),
-                    Divider(),
-                    ...completedTasks
-                        .map((task) => buildTaskTile(task))
-                        .toList(),
-                  ],
+                return GridView.builder(
+                  padding: const EdgeInsets.all(8.0),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: isLandscape ? 5 : 1,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    childAspectRatio: 3 / 2.5,
+                  ),
+                  itemCount: incompleteTasks.length + completedTasks.length,
+                  itemBuilder: (context, index) {
+                    if (index < incompleteTasks.length) {
+                      return buildTaskTile(incompleteTasks[index]);
+                    } else {
+                      return buildTaskTile(
+                          completedTasks[index - incompleteTasks.length]);
+                    }
+                  },
                 );
               },
             ),
@@ -115,47 +114,105 @@ class _HomePageState extends State<HomePage> {
       ),
       floatingActionButton: FloatingActionButton(
         child: Icon(Icons.add),
-        onPressed: () async {
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => AddTaskPage()),
-          );
-          if (result == true) {
-            _refreshTaskList();
-          }
+        onPressed: () {
+          _showTaskForm();
         },
       ),
     );
   }
 
   Widget buildTaskTile(Task task) {
-    return ListTile(
-      tileColor: task.isDone ? Colors.green[100] : Colors.white,
-      title: Text(task.title),
-      subtitle: Text(
-        'Start: ${DateFormat('yyyy-MM-dd').format(DateTime.parse(task.startDate))}\nEnd: ${DateFormat('yyyy-MM-dd').format(DateTime.parse(task.endDate))}\nPriority: ${task.priority}\nTime Working: ${task.timeWorking}\nDuration: ${task.duration}\nNote: ${task.note}',
-      ),
-      trailing: Checkbox(
-        value: task.isDone,
-        onChanged: (value) {
-          setState(() {
-            task.isDone = value!;
-            dbHelper.updateTask(task);
-            _refreshTaskList();
-          });
-        },
-      ),
-      onTap: () async {
-        final result = await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => AddTaskPage(task: task),
-          ),
-        );
-        if (result == true) {
-          _refreshTaskList();
-        }
+    return GestureDetector(
+      onTap: () {
+        _showTaskForm(task: task);
       },
+      child: Card(
+        elevation:
+            6.0, // Slightly increased elevation for a more pronounced shadow
+        margin: const EdgeInsets.all(10.0), // Add some margin around the card
+        clipBehavior: Clip
+            .antiAlias, // Ensures that the content does not overflow and is clipped to the border radius
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(
+              16.0), // Increased border radius for a softer look
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: task.isDone
+                  ? [Colors.green[300]!, Colors.green[100]!]
+                  : [Color.fromARGB(255, 200, 161, 226), Colors.white],
+              // Gradient effect from a darker to lighter shade depending on task completion
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(
+                20.0), // Increased padding for better spacing
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  task.title,
+                  style: TextStyle(
+                    fontSize: 24, // Increased font size for title
+                    fontWeight: FontWeight.bold,
+                    color: Colors
+                        .grey[800], // Darker text color for better readability
+                  ),
+                ),
+                SizedBox(height: 10), // Increased spacing
+                Text(
+                  'Start: ${DateFormat('yyyy-MM-dd').format(DateTime.parse(task.startDate))}',
+                  style: TextStyle(fontSize: 18, color: Colors.grey[700]),
+                ),
+                Text(
+                  'End: ${DateFormat('yyyy-MM-dd').format(DateTime.parse(task.endDate))}',
+                  style: TextStyle(fontSize: 18, color: Colors.grey[700]),
+                ),
+                Text(
+                  'Priority: ${task.priority}',
+                  style: TextStyle(
+                      fontSize: 18,
+                      color:
+                          Colors.red[300]), // Highlight priority with a color
+                ),
+                Text(
+                  'Time Working: ${task.timeWorking}',
+                  style: TextStyle(fontSize: 18, color: Colors.grey[700]),
+                ),
+                Text(
+                  'Duration: ${task.duration}',
+                  style: TextStyle(fontSize: 18, color: Colors.grey[700]),
+                ),
+                Text(
+                  'Note: ${task.note}',
+                  style: TextStyle(fontSize: 18, color: Colors.grey[700]),
+                ),
+                Spacer(),
+                Align(
+                  alignment: Alignment.bottomRight,
+                  child: Checkbox(
+                    value: task.isDone,
+                    onChanged: (value) {
+                      // Same functionality as before but consider changing the color of the checkbox
+                      setState(() {
+                        task.isDone = value!;
+                        Provider.of<TaskProvider>(context, listen: false)
+                            .updateTask(task);
+                      });
+                    },
+                    activeColor:
+                        Colors.green[400], // Checkbox color when active
+                    checkColor: Colors.white, // Color of the tick
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

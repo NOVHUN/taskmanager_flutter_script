@@ -11,61 +11,57 @@ class SettingsPage extends StatelessWidget {
         title: Text('Settings'),
       ),
       body: Center(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Image.asset('assets/Wespaces.png', height: 100), // Correct path
-                SizedBox(height: 20),
-                Text('Version: $version'),
-                SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: () async {
-                    await DatabaseHelper().clearAllTasks();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('All data cleared')),
-                    );
-                  },
-                  child: Text('Clear All Data'),
-                ),
-                SizedBox(height: 20),
-                GestureDetector(
-                  onTap: () {
-                    // Navigate to terms and conditions page
-                  },
-                  child: Text(
-                    'Terms and Conditions',
-                    style: TextStyle(
-                      decoration: TextDecoration.underline,
-                      color: Colors.blue,
-                    ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Image.asset('assets/Wespaces.png', height: 100), // Correct path
+              SizedBox(height: 20),
+              Text('Version: $version'),
+              SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () async {
+                  await DatabaseHelper().clearAllTasks();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('All data cleared')),
+                  );
+                },
+                child: Text('Clear All Data'),
+              ),
+              SizedBox(height: 20),
+              GestureDetector(
+                onTap: () {
+                  // Navigate to terms and conditions page
+                },
+                child: Text(
+                  'Terms and Conditions',
+                  style: TextStyle(
+                    decoration: TextDecoration.underline,
+                    color: Colors.blue,
                   ),
                 ),
-                SizedBox(height: 20),
-                GestureDetector(
-                  onTap: () {
-                    // Navigate to privacy policy page
-                  },
-                  child: Text(
-                    'Privacy Policy',
-                    style: TextStyle(
-                      decoration: TextDecoration.underline,
-                      color: Colors.blue,
-                    ),
+              ),
+              SizedBox(height: 20),
+              GestureDetector(
+                onTap: () {
+                  // Navigate to privacy policy page
+                },
+                child: Text(
+                  'Privacy Policy',
+                  style: TextStyle(
+                    decoration: TextDecoration.underline,
+                    color: Colors.blue,
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(8.0),
-        child: Text('Power By Wespace Team(Developer: Mr.Hun)',
-            textAlign: TextAlign.center),
+        child: Text('Powered by Wespace Team', textAlign: TextAlign.center),
       ),
     );
   }
